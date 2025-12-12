@@ -22,7 +22,7 @@ export interface ComparisonResult {
   minimum: number;
   difference: number;
   percentComplete: number;
-  status: 'met' | 'below' | 'critical';
+  status: 'met' | 'below' | 'critical' | 'no_minimum';
   type: 'lead' | 'leadAndSenior';
 }
 

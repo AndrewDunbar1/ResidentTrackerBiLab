@@ -7,8 +7,19 @@ function calculateComparison(
   const current = type === 'lead' ? category.leadResidentSurgeon : category.leadAndSeniorTotal;
   const minimum = type === 'lead' ? category.leadMinimum : category.leadAndSeniorMinimum;
   
-  // Skip if no minimum requirement
-  if (minimum === 0) return null;
+  // Keep rows even when there is no minimum requirement, so the output matches the source PDF.
+  // These rows should not affect overall completion calculations.
+  if (minimum === 0) {
+    return {
+      category: category.category,
+      current,
+      minimum,
+      difference: 0,
+      percentComplete: 0,
+      status: 'no_minimum',
+      type,
+    };
+  }
   
   const difference = current - minimum;
   const percentComplete = Math.min(100, Math.round((current / minimum) * 100));
@@ -47,17 +58,20 @@ export function compareResident(data: ResidentData): ResidentComparison {
     if (leadAndSeniorResult) leadAndSeniorResults.push(leadAndSeniorResult);
   }
   
-  const totalLeadMet = leadResults.filter(r => r.status === 'met').length;
-  const totalLeadAndSeniorMet = leadAndSeniorResults.filter(r => r.status === 'met').length;
-  const totalCategories = leadResults.length + leadAndSeniorResults.length;
+  const requiredLeadResults = leadResults.filter(r => r.status !== 'no_minimum');
+  const requiredLeadAndSeniorResults = leadAndSeniorResults.filter(r => r.status !== 'no_minimum');
+
+  const totalLeadMet = requiredLeadResults.filter(r => r.status === 'met').length;
+  const totalLeadAndSeniorMet = requiredLeadAndSeniorResults.filter(r => r.status === 'met').length;
+  const totalCategories = requiredLeadResults.length + requiredLeadAndSeniorResults.length;
   const totalCategoriesMet = totalLeadMet + totalLeadAndSeniorMet;
   
-  const overallLeadPercentage = leadResults.length > 0
-    ? Math.round(leadResults.reduce((acc, r) => acc + r.percentComplete, 0) / leadResults.length)
+  const overallLeadPercentage = requiredLeadResults.length > 0
+    ? Math.round(requiredLeadResults.reduce((acc, r) => acc + r.percentComplete, 0) / requiredLeadResults.length)
     : 0;
     
-  const overallLeadAndSeniorPercentage = leadAndSeniorResults.length > 0
-    ? Math.round(leadAndSeniorResults.reduce((acc, r) => acc + r.percentComplete, 0) / leadAndSeniorResults.length)
+  const overallLeadAndSeniorPercentage = requiredLeadAndSeniorResults.length > 0
+    ? Math.round(requiredLeadAndSeniorResults.reduce((acc, r) => acc + r.percentComplete, 0) / requiredLeadAndSeniorResults.length)
     : 0;
   
   return {

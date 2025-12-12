@@ -9,11 +9,12 @@ interface ResidentCardProps {
   rank?: number;
 }
 
-function StatusBadge({ status }: { status: 'met' | 'below' | 'critical' }) {
+function StatusBadge({ status }: { status: 'met' | 'below' | 'critical' | 'no_minimum' }) {
   const config = {
     met: { icon: CheckCircle2, label: 'Met', className: 'bg-success/10 text-success' },
     below: { icon: AlertCircle, label: 'Below', className: 'bg-warning/10 text-warning' },
     critical: { icon: XCircle, label: 'Critical', className: 'bg-destructive/10 text-destructive' },
+    no_minimum: { icon: AlertCircle, label: 'No minimum', className: 'bg-muted text-muted-foreground' },
   };
   
   const { icon: Icon, label, className } = config[status];
@@ -26,7 +27,11 @@ function StatusBadge({ status }: { status: 'met' | 'below' | 'critical' }) {
   );
 }
 
-function ProgressBar({ value, status }: { value: number; status: 'met' | 'below' | 'critical' }) {
+function ProgressBar({ value, status }: { value: number; status: 'met' | 'below' | 'critical' | 'no_minimum' }) {
+  if (status === 'no_minimum') {
+    return <div className="h-2 bg-muted rounded-full overflow-hidden" />;
+  }
+
   const gradientClass = {
     met: 'gradient-success',
     below: 'gradient-warning',
@@ -69,14 +74,17 @@ function CategoryTable({ results, title }: { results: ComparisonResult[]; title:
                 <td className="py-2 px-3 text-center font-mono">{result.minimum}</td>
                 <td className={cn(
                   'py-2 px-3 text-center font-mono font-medium',
-                  result.difference >= 0 ? 'text-success' : 'text-destructive'
+                  result.status === 'no_minimum' && 'text-muted-foreground',
+                  result.status !== 'no_minimum' && (result.difference >= 0 ? 'text-success' : 'text-destructive')
                 )}>
-                  {result.difference >= 0 ? '+' : ''}{result.difference}
+                  {result.status === 'no_minimum' ? '—' : `${result.difference >= 0 ? '+' : ''}${result.difference}`}
                 </td>
                 <td className="py-2 px-3">
                   <div className="flex items-center gap-2">
                     <ProgressBar value={result.percentComplete} status={result.status} />
-                    <span className="text-xs text-muted-foreground w-10">{result.percentComplete}%</span>
+                    <span className="text-xs text-muted-foreground w-10">
+                      {result.status === 'no_minimum' ? 'N/A' : `${result.percentComplete}%`}
+                    </span>
                   </div>
                 </td>
                 <td className="py-2 px-3 text-center">
