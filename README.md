@@ -1,70 +1,124 @@
-# Welcome to your Lovable project
+# Resident Tracker
 
-## Project info
+Resident Tracker is a browser-based tool for analyzing neurosurgery resident case logs from a combined PDF export and generating comparison reports.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## What it does
 
-## How can I edit this code?
+- Uploads a consolidated resident case log PDF.
+- Splits the PDF into resident-level records automatically.
+- Maps residents to PGY year.
+- Compares lead and lead-plus-senior totals against minimum requirements.
+- Generates:
+  - a grid-style BWH PDF export
+  - a per-resident cohort performance PDF export
+  - on-screen comparison and ranking views
 
-There are several ways of editing your application.
+## Expected input
 
-**Use Lovable**
+The current workflow is built around a combined PDF case log file where:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- each resident section begins with `Resident:`
+- formatting is preserved from the source ACGME/BWH-style report
+- a resident may span multiple pages
 
-Changes made via Lovable will be committed automatically to this repo.
+Example input used during development:
 
-**Use your preferred IDE**
+- `UpdatedResidentLog.pdf`
+- `ResMinDefCat160 2.13.26.pdf`
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Current cohort size
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The app currently expects 21 residents.
 
-Follow these steps:
+- PGY7: 3
+- PGY6: 3
+- PGY5: 3
+- PGY4: 3
+- PGY3: 4
+- PGY2: 3
+- PGY1: 2
+
+## Tech stack
+
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- `pdfjs-dist` for PDF parsing
+- `jspdf` for PDF generation
+- `xlsx` and `jszip` for template-based export support
+
+## Local development
+
+Requirements:
+
+- Node.js
+- npm
+
+Run locally:
 
 ```sh
-# Step 1: Navigate to the project directory.
 cd "/Users/andrew/Desktop/ResidentLogging/ResidentTracker/resident-success-tracker"
-
-# Step 2: Install the necessary dependencies.
 npm i
-
-# Step 3: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The dev server typically starts at:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```text
+http://localhost:8080
+```
 
-**Use GitHub Codespaces**
+## Build
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Create a production build:
 
-## What technologies are used for this project?
+```sh
+cd "/Users/andrew/Desktop/ResidentLogging/ResidentTracker/resident-success-tracker"
+npm run build
+```
 
-This project is built with:
+Preview the built app locally:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```sh
+npm run preview
+```
 
-## How can I deploy this project?
+## Share as a static app
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+This project can be shared as a static web app because it runs entirely in the browser.
 
-## Can I connect a custom domain to my Lovable project?
+Build output is written to:
 
-Yes, you can!
+```text
+dist/
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+That folder can be zipped and shared directly, or hosted on a static hosting service such as:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- Vercel
+- Netlify
+- GitHub Pages
+- Cloudflare Pages
+
+## Key app files
+
+- `src/pages/Index.tsx`
+  - Main upload and reporting workflow.
+- `src/lib/parseResidentData.ts`
+  - PDF and Excel parsing logic.
+- `src/lib/residentRoster.ts`
+  - Resident-to-PGY mapping.
+- `src/lib/compareResidents.ts`
+  - Comparison and ranking logic.
+- `src/lib/exportBwhTemplatePdf.ts`
+  - Grid export PDF generation.
+- `src/lib/exportPdf.ts`
+  - Per-resident cohort performance PDF generation.
+
+## Notes
+
+- The app is optimized for the BWH-style case log format currently in use.
+- Grid exports are built dynamically from uploaded residents and their PGY assignments.
+- If resident names or PGY assignments change, update `src/lib/residentRoster.ts`.
