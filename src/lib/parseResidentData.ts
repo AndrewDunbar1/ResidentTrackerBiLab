@@ -104,7 +104,9 @@ export async function parseExcelFile(file: File): Promise<ResidentData> {
   };
 }
 
-export async function parsePDFFile(file: File): Promise<ResidentData> {
+type PdfTextItem = { str: string; x: number; y: number };
+
+async function extractPdfRows(file: File): Promise<string[][]> {
   const arrayBuffer = await file.arrayBuffer();
   const pdfjsModule = await import('pdfjs-dist');
   // pdfjs-dist has different module shapes depending on bundler/target; prefer default export when present.
@@ -116,16 +118,14 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdf = await (pdfjsLib as any).getDocument({ data: arrayBuffer }).promise;
-  
-  // Extract text with position info to reconstruct table rows
-  type TextItem = { str: string; x: number; y: number };
-  const allItems: TextItem[] = [];
-  
+
+  const allItems: PdfTextItem[] = [];
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const pageHeight = (await page.getViewport({ scale: 1 })).height;
-    
+
     for (const item of textContent.items) {
       if ('str' in item && typeof item.str === 'string' && item.str.trim()) {
         const transform = item.transform as number[];
@@ -137,19 +137,17 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
       }
     }
   }
-  
-  // Sort by Y position (top to bottom) then X (left to right)
+
   allItems.sort((a, b) => {
     const yDiff = a.y - b.y;
     if (Math.abs(yDiff) < 2) return a.x - b.x;
     return yDiff;
   });
-  
-  // Group into rows based on Y position
+
   const rows: string[][] = [];
-  let currentRow: TextItem[] = [];
+  let currentRow: PdfTextItem[] = [];
   let lastY = -1;
-  
+
   for (const item of allItems) {
     // Tighter tolerance helps avoid accidentally merging adjacent table rows.
     if (lastY === -1 || Math.abs(item.y - lastY) < 3) {
@@ -167,24 +165,25 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
     currentRow.sort((a, b) => a.x - b.x);
     rows.push(currentRow.map(i => i.str));
   }
-  
-  // Join rows into text for metadata extraction
+
+  return rows;
+}
+
+function parseResidentRows(rows: string[][], programFallback?: string): ResidentData {
   const fullText = rows.map(r => r.join(' ')).join('\n');
-  
-  // Extract metadata
+
   let residentName = 'Unknown Resident';
-  const residentMatch = fullText.match(/Resident:\s*([A-Za-z\s]+?)(?:\n|As of)/i);
+  const residentMatch = fullText.match(/Resident:\s*([A-Za-z\s]+?)(?:\n|As of|Done Up To)/i);
   if (residentMatch) residentName = residentMatch[1].trim();
 
-  let program = 'Unknown Program';
+  let program = programFallback || 'Unknown Program';
   const programMatch = fullText.match(/([A-Za-z\s\/]+Hospital[A-Za-z\s\/]+Program\s*-\s*\d+)/i);
   if (programMatch) program = programMatch[1].trim();
 
   let asOfDate = new Date().toLocaleDateString();
-  const dateMatch = fullText.match(/As of\s*([\d\/]+)/i);
+  const dateMatch = fullText.match(/(?:As of|Done Up To)\s*([\d\/]+)/i);
   if (dateMatch) asOfDate = dateMatch[1].trim();
 
-  // Parse categories - look for rows with 5 numeric values
   const categories: CaseCategory[] = [];
   const sectionHeaders = ['cranial', 'spinal', 'other', 'critical care', 'pediatric', 'all defined case procedures'];
   const sectionTitleMap: Record<string, string> = {
@@ -195,7 +194,7 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
     pediatric: 'Pediatric',
     'all defined case procedures': 'All Defined Case Procedures',
   };
-  
+
   const normalizeCategoryText = (text: string) => {
     return text
       .replace(/\s+/g, ' ')
@@ -224,7 +223,6 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
   let pendingNumbers: number[] = [];
   let currentSection: string | null = null;
 
-  // Start parsing only after the table header row; prevents metadata numbers from polluting state.
   const headerRowIndex = rows.findIndex(r => {
     const t = r.join(' ').toLowerCase().replace(/\s+/g, ' ').trim();
     return (
@@ -254,7 +252,10 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
     if (currentSection) {
       const sectionLower = currentSection.toLowerCase();
       if (
-        !normalized.startsWith('total ') &&
+        // Never prefix totals (e.g., "Total", "Total Pediatric", "Total Cranial")
+        !normalized.startsWith('total') &&
+        // "Microdissection" is a global row, not a Pediatric subcategory.
+        normalized !== 'microdissection' &&
         !raw.toLowerCase().startsWith(sectionLower) &&
         !raw.includes(':')
       ) {
@@ -341,30 +342,33 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
     flushCategory();
   }
 
-  // Fallback: if positional reconstruction still drops rows, extract any "Category + 5 numbers" sequences from text.
-  // This reliably captures lines like "Cranial: Vascular Open 3 12 15 0 10" when present.
   const existingKeys = new Set(categories.map(c => c.category.toLowerCase()));
   const rowRegex =
-    /([A-Za-z][A-Za-z0-9/()'&.,\\-\\s:]+?)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = rowRegex.exec(fullText)) !== null) {
-    const categoryName = normalizeCategoryText(match[1] || '');
-    if (!categoryName) continue;
-    const normalized = categoryName.toLowerCase();
-    if (normalized === 'category') continue;
-    if (sectionHeaders.some(sh => normalized === sh)) continue;
-    if (existingKeys.has(normalized)) continue;
+    /([A-Za-z][-A-Za-z0-9/()'&.,: ]+?)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)/g;
 
-    categories.push({
-      category: categoryName,
-      leadResidentSurgeon: parseInt(match[2] || '0', 10) || 0,
-      seniorResidentSurgeon: parseInt(match[3] || '0', 10) || 0,
-      leadAndSeniorTotal: parseInt(match[4] || '0', 10) || 0,
-      leadMinimum: parseInt(match[5] || '0', 10) || 0,
-      leadAndSeniorMinimum: parseInt(match[6] || '0', 10) || 0,
-      isTotalRow: normalized.startsWith('total') || normalized.includes(' total'),
-    });
-    existingKeys.add(normalized);
+  for (const row of rows) {
+    const line = row.join(' ').replace(/\s+/g, ' ').trim();
+    if (!line) continue;
+
+    for (const match of line.matchAll(rowRegex)) {
+      const categoryName = normalizeCategoryText(match[1] || '');
+      if (!categoryName) continue;
+      const normalized = categoryName.toLowerCase();
+      if (normalized === 'category') continue;
+      if (sectionHeaders.some(sh => normalized === sh)) continue;
+      if (existingKeys.has(normalized)) continue;
+
+      categories.push({
+        category: categoryName,
+        leadResidentSurgeon: parseInt(match[2] || '0', 10) || 0,
+        seniorResidentSurgeon: parseInt(match[3] || '0', 10) || 0,
+        leadAndSeniorTotal: parseInt(match[4] || '0', 10) || 0,
+        leadMinimum: parseInt(match[5] || '0', 10) || 0,
+        leadAndSeniorMinimum: parseInt(match[6] || '0', 10) || 0,
+        isTotalRow: normalized.startsWith('total') || normalized.includes(' total'),
+      });
+      existingKeys.add(normalized);
+    }
   }
 
   return {
@@ -375,11 +379,43 @@ export async function parsePDFFile(file: File): Promise<ResidentData> {
   };
 }
 
-export async function parseResidentFile(file: File): Promise<ResidentData> {
+export async function parsePDFFile(file: File): Promise<ResidentData[]> {
+  const rows = await extractPdfRows(file);
+  if (!rows.length) return [];
+
+  const fullText = rows.map(r => r.join(' ')).join('\n');
+  const programMatch = fullText.match(/([A-Za-z\s\/]+Hospital[A-Za-z\s\/]+Program\s*-\s*\d+)/i);
+  const programFallback = programMatch ? programMatch[1].trim() : undefined;
+
+  const residentIndexes = rows
+    .map((row, idx) => {
+      const text = row.join(' ').replace(/\s+/g, ' ').trim().toLowerCase();
+      return text.startsWith('resident:') ? idx : -1;
+    })
+    .filter(idx => idx >= 0);
+
+  if (residentIndexes.length <= 1) {
+    return [parseResidentRows(rows, programFallback)];
+  }
+
+  const residents: ResidentData[] = [];
+
+  for (let i = 0; i < residentIndexes.length; i++) {
+    const start = residentIndexes[i];
+    const end = residentIndexes[i + 1] ?? rows.length;
+    const sectionRows = rows.slice(start, end);
+    const parsed = parseResidentRows(sectionRows, programFallback);
+    residents.push(parsed);
+  }
+
+  return residents;
+}
+
+export async function parseResidentFile(file: File): Promise<ResidentData[]> {
   const fileName = file.name.toLowerCase();
   
   if (fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) {
-    return parseExcelFile(file);
+    return [await parseExcelFile(file)];
   } else if (fileName.endsWith('.pdf')) {
     return parsePDFFile(file);
   } else {

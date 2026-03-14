@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Activity, Users, FileBarChart } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { FileUploader } from '@/components/FileUploader';
 import { ResidentCard } from '@/components/ResidentCard';
 import { ComparativeReport } from '@/components/ComparativeReport';
 import { parseResidentFile } from '@/lib/parseResidentData';
 import { compareResident, rankResidents } from '@/lib/compareResidents';
+import { lookupPgy } from '@/lib/residentRoster';
 import type { ResidentData, ResidentComparison } from '@/types/resident';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,8 +23,11 @@ const Index = () => {
       
       for (const file of files) {
         try {
-          const data = await parseResidentFile(file);
-          parsedData.push(data);
+          const dataList = await parseResidentFile(file);
+          for (const data of dataList) {
+            data.pgy = lookupPgy(data.residentName);
+            parsedData.push(data);
+          }
         } catch (error) {
           console.error(`Error parsing ${file.name}:`, error);
           toast({
@@ -43,7 +47,7 @@ const Index = () => {
         
         toast({
           title: 'Files Processed',
-          description: `Successfully processed ${parsedData.length} resident file${parsedData.length > 1 ? 's' : ''}.`,
+          description: `Successfully processed ${parsedData.length} resident record${parsedData.length > 1 ? 's' : ''} from ${files.length} file${files.length > 1 ? 's' : ''}.`,
         });
       }
     } catch (error) {
@@ -69,8 +73,8 @@ const Index = () => {
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <Activity className="w-6 h-6 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center">
+              <img src="/mgb.png" alt="MGB" className="w-7 h-7 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">Residency Case Tracker</h1>
@@ -89,24 +93,8 @@ const Index = () => {
                 Track Resident Progress
               </h2>
               <p className="text-muted-foreground">
-                Upload case log files to compare resident performance against ACGME minimum requirements
+                Compare resident performance against ACGME minimum requirements
               </p>
-            </div>
-
-            {/* Stats Preview */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="p-4 bg-card rounded-lg border border-border text-center animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Multiple Residents</p>
-              </div>
-              <div className="p-4 bg-card rounded-lg border border-border text-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                <FileBarChart className="w-6 h-6 text-accent mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">PDF & Excel</p>
-              </div>
-              <div className="p-4 bg-card rounded-lg border border-border text-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
-                <Activity className="w-6 h-6 text-success mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">Instant Analysis</p>
-              </div>
             </div>
 
             {/* File Uploader */}
@@ -124,12 +112,14 @@ const Index = () => {
                   {comparisons.length} resident{comparisons.length > 1 ? 's' : ''} analyzed
                 </p>
               </div>
-              <button
-                onClick={handleReset}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                Upload New Files
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleReset}
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  Upload New Files
+                </button>
+              </div>
             </div>
 
             {/* Comparative Report (if multiple residents) */}
@@ -141,11 +131,10 @@ const Index = () => {
             <div>
               <h3 className="text-lg font-semibold text-foreground mb-4">Individual Reports</h3>
               <div className="space-y-4">
-                {comparisons.map((comparison, index) => (
+                {comparisons.map((comparison) => (
                   <ResidentCard
                     key={comparison.residentName}
                     comparison={comparison}
-                    rank={comparisons.length > 1 ? index + 1 : undefined}
                   />
                 ))}
               </div>

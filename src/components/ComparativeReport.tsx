@@ -1,6 +1,7 @@
-import { Download, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Download } from 'lucide-react';
 import type { ResidentComparison } from '@/types/resident';
-import { exportComparativeReport } from '@/lib/exportExcel';
+import { exportCohortStandardizedPdfReport } from '@/lib/exportPdf';
+import { exportBwhTemplateGridPdf, exportBwhTemplateGridPdfLocal } from '@/lib/exportBwhTemplatePdf';
 import { cn } from '@/lib/utils';
 
 interface ComparativeReportProps {
@@ -18,10 +19,17 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
     comparisons.reduce((acc, c) => acc + c.overallLeadAndSeniorPercentage, 0) / comparisons.length
   );
 
-  const getTrendIcon = (value: number, avg: number) => {
-    if (value > avg + 10) return <TrendingUp className="w-4 h-4 text-success" />;
-    if (value < avg - 10) return <TrendingDown className="w-4 h-4 text-destructive" />;
-    return <Minus className="w-4 h-4 text-muted-foreground" />;
+  const overallScores = comparisons.map(
+    c => (c.overallLeadPercentage + c.overallLeadAndSeniorPercentage) / 2
+  );
+
+  const getPercentileRank = (value: number, values: number[]) => {
+    if (values.length <= 1) return 100;
+    const sorted = [...values].sort((a, b) => a - b);
+    const lessCount = sorted.filter(v => v < value).length;
+    const equalCount = sorted.filter(v => v === value).length;
+    const percentile = ((lessCount + 0.5 * equalCount) / values.length) * 100;
+    return Math.round(percentile);
   };
 
   return (
@@ -35,13 +43,29 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
             </p>
           </div>
           
-          <button
-            onClick={() => exportComparativeReport(comparisons)}
-            className="flex items-center gap-2 px-4 py-2 gradient-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
-          >
-            <Download className="w-4 h-4" />
-            Export Report
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportBwhTemplateGridPdf(comparisons)}
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export Grid Global
+            </button>
+            <button
+              onClick={() => exportBwhTemplateGridPdfLocal(comparisons)}
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg font-medium text-foreground hover:bg-muted transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export Grid Local
+            </button>
+            <button
+              onClick={() => exportCohortStandardizedPdfReport(comparisons)}
+              className="flex items-center gap-2 px-4 py-2 gradient-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
+            >
+              <Download className="w-4 h-4" />
+              Export Per-Resident Performance PDF
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-4">
@@ -57,18 +81,17 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
       </div>
 
       <div className="p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Rankings</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left py-3 px-3 text-muted-foreground font-medium">Rank</th>
                 <th className="text-left py-3 px-3 text-muted-foreground font-medium">Resident</th>
+                <th className="text-center py-3 px-3 text-muted-foreground font-medium">PGY</th>
                 <th className="text-center py-3 px-3 text-muted-foreground font-medium">Lead %</th>
                 <th className="text-center py-3 px-3 text-muted-foreground font-medium">Lead+Senior %</th>
                 <th className="text-center py-3 px-3 text-muted-foreground font-medium">Average</th>
+                <th className="text-center py-3 px-3 text-muted-foreground font-medium">Overall Percentile</th>
                 <th className="text-center py-3 px-3 text-muted-foreground font-medium">Categories Met</th>
-                <th className="text-center py-3 px-3 text-muted-foreground font-medium">vs Avg</th>
               </tr>
             </thead>
             <tbody>
@@ -76,25 +99,17 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
                 const avgScore = Math.round(
                   (comparison.overallLeadPercentage + comparison.overallLeadAndSeniorPercentage) / 2
                 );
-                const overallAvg = Math.round((avgLeadScore + avgLeadSeniorScore) / 2);
+                const percentile = getPercentileRank(avgScore, overallScores);
                 
                 return (
                   <tr
                     key={comparison.residentName}
                     className={cn('border-b border-border/50', index % 2 === 0 && 'bg-muted/30')}
                   >
-                    <td className="py-3 px-3">
-                      <div className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm',
-                        index === 0 && 'gradient-primary text-primary-foreground',
-                        index === 1 && 'bg-secondary text-secondary-foreground',
-                        index === 2 && 'bg-accent/20 text-accent',
-                        index > 2 && 'bg-muted text-muted-foreground'
-                      )}>
-                        {index + 1}
-                      </div>
-                    </td>
                     <td className="py-3 px-3 font-medium text-foreground">{comparison.residentName}</td>
+                    <td className="py-3 px-3 text-center font-mono text-muted-foreground">
+                      {comparison.pgy ? `PGY${comparison.pgy}` : '—'}
+                    </td>
                     <td className="py-3 px-3 text-center font-mono">{comparison.overallLeadPercentage}%</td>
                     <td className="py-3 px-3 text-center font-mono">{comparison.overallLeadAndSeniorPercentage}%</td>
                     <td className="py-3 px-3 text-center">
@@ -105,13 +120,11 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
                         {avgScore}%
                       </span>
                     </td>
+                    <td className="py-3 px-3 text-center font-mono text-sm text-foreground">
+                      {percentile}%
+                    </td>
                     <td className="py-3 px-3 text-center text-muted-foreground">
                       {comparison.totalCategoriesMet}/{comparison.totalCategories}
-                    </td>
-                    <td className="py-3 px-3">
-                      <div className="flex items-center justify-center">
-                        {getTrendIcon(avgScore, overallAvg)}
-                      </div>
                     </td>
                   </tr>
                 );

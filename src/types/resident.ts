@@ -13,6 +13,7 @@ export interface ResidentData {
   residentName: string;
   program: string;
   asOfDate: string;
+  pgy?: number;
   categories: CaseCategory[];
 }
 
@@ -28,6 +29,7 @@ export interface ComparisonResult {
 
 export interface ResidentComparison {
   residentName: string;
+  pgy?: number;
   leadResults: ComparisonResult[];
   leadAndSeniorResults: ComparisonResult[];
   overallLeadPercentage: number;

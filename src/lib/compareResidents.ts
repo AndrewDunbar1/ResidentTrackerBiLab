@@ -76,6 +76,7 @@ export function compareResident(data: ResidentData): ResidentComparison {
   
   return {
     residentName: data.residentName,
+    pgy: data.pgy,
     leadResults,
     leadAndSeniorResults,
     overallLeadPercentage,

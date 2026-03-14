@@ -90,7 +90,7 @@ export function FileUploader({ onFilesSelected, isLoading }: FileUploaderProps) 
               Drop resident case log files here
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              or click to browse • Supports PDF and Excel files
+              or click to browse • Supports Combined PDF Case Log File
             </p>
           </div>
         </div>

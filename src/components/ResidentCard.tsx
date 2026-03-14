@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 
 interface ResidentCardProps {
   comparison: ResidentComparison;
-  rank?: number;
 }
 
 function StatusBadge({ status }: { status: 'met' | 'below' | 'critical' | 'no_minimum' }) {
@@ -99,7 +98,7 @@ function CategoryTable({ results, title }: { results: ComparisonResult[]; title:
   );
 }
 
-export function ResidentCard({ comparison, rank }: ResidentCardProps) {
+export function ResidentCard({ comparison }: ResidentCardProps) {
   const [expanded, setExpanded] = useState(false);
   
   const overallScore = Math.round(
@@ -112,18 +111,11 @@ export function ResidentCard({ comparison, rank }: ResidentCardProps) {
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden animate-slide-up">
       <div className="p-5">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            {rank && (
-              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                #{rank}
-              </div>
-            )}
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">{comparison.residentName}</h3>
-              <p className="text-sm text-muted-foreground">
-                {comparison.totalCategoriesMet} of {comparison.totalCategories} categories met
-              </p>
-            </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">{comparison.residentName}</h3>
+            <p className="text-sm text-muted-foreground">
+              {comparison.pgy ? `PGY${comparison.pgy} • ` : ''}{comparison.totalCategoriesMet} of {comparison.totalCategories} categories met
+            </p>
           </div>
           
           <button
