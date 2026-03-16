@@ -18,6 +18,11 @@ function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+function formatMetric(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(1).replace(/\.0$/, '');
+}
+
 function getPercentMinimumsMet(c: ResidentComparison): number {
   if (!c.totalCategories) return 0;
   return Math.round((c.totalCategoriesMet / c.totalCategories) * 100);
@@ -79,6 +84,16 @@ function buildCohortStats(
   return map;
 }
 
+function getResidentCohortComparisons(
+  resident: ResidentComparison,
+  comparisons: ResidentComparison[]
+): ResidentComparison[] {
+  if (!resident.pgy) return comparisons;
+
+  const samePgy = comparisons.filter(c => c.pgy === resident.pgy);
+  return samePgy.length > 0 ? samePgy : comparisons;
+}
+
 function getResidentResult(
   comparison: ResidentComparison,
   category: string,
@@ -111,9 +126,6 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
   const columnsGap = 14;
   const usableWidth = pageWidth - marginX * 2;
   const colW = (usableWidth - columnsGap) / 2;
-
-  const leadStats = buildCohortStats(comparisons, 'lead');
-  const leadSeniorStats = buildCohortStats(comparisons, 'leadAndSenior');
 
   const drawHeader = (resident: ResidentComparison) => {
     const percentMet = getPercentMinimumsMet(resident);
@@ -165,10 +177,10 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
     // Right-side compact values (single line, avoids extra vertical space)
     doc.setFontSize(7.25);
     doc.setTextColor(90);
-    const minText = isNoMinimum || minRequirement === 0 ? '—' : String(minRequirement);
-    const meanRounded = Math.round(stats.mean);
-    const rangeText = `${Math.round(stats.min)}–${Math.round(stats.max)}`;
-    const info = `You ${residentValue}  •  Min ${minText}  •  Mean ${meanRounded}  •  Range ${rangeText}`;
+    const minText = isNoMinimum || minRequirement === 0 ? '—' : formatMetric(minRequirement);
+    const meanText = formatMetric(stats.mean);
+    const rangeText = `${formatMetric(stats.min)}–${formatMetric(stats.max)}`;
+    const info = `You ${formatMetric(residentValue)}  •  Min ${minText}  •  Mean ${meanText}  •  Range ${rangeText}`;
     doc.text(info, barX, y + 9, { maxWidth: barW });
     doc.setTextColor(0);
 
@@ -189,12 +201,6 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
     doc.line(rangeMinX, barY - 2, rangeMinX, barY + barHeight + 2);
     doc.line(rangeMaxX, barY - 2, rangeMaxX, barY + barHeight + 2);
 
-    // Mean marker (red dash) - cohort mean of uploaded residents
-    const meanVal = Math.min(Math.max(stats.mean, stats.min), stats.max);
-    const meanX = valueToX(meanVal, domainMax, barX, barW);
-    doc.setDrawColor(220, 38, 38);
-    doc.line(meanX, barY - 3, meanX, barY + barHeight + 3);
-
     // Minimum requirement marker (black dash)
     if (!isNoMinimum && minRequirement > 0) {
       const rx = valueToX(minRequirement, domainMax, barX, barW);
@@ -211,17 +217,25 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
     doc.setFillColor(17, 116, 255);
     doc.setDrawColor(17, 116, 255);
     doc.triangle(px, tipY, px - triSize, baseY, px + triSize, baseY, 'FD');
+
+    // Mean marker (red dash) - draw last so it remains visible even when it overlaps the resident marker.
+    const meanVal = Math.min(Math.max(stats.mean, stats.min), stats.max);
+    const meanX = valueToX(meanVal, domainMax, barX, barW);
+    doc.setDrawColor(220, 38, 38);
+    doc.line(meanX, barY - 3, meanX, barY + barHeight + 3);
   };
 
   const renderResidentSectionTwoColumn = (
     resident: ResidentComparison,
     type: RequirementType,
-    statsMap: Map<string, CohortCategoryStats>,
     pageTitle: string
   ) => {
+    const cohortComparisons = getResidentCohortComparisons(resident, comparisons);
+    const statsMap = buildCohortStats(cohortComparisons, type);
+
     drawHeader(resident);
 
-    const order = getCategoryOrder(comparisons, type);
+    const order = getCategoryOrder(cohortComparisons, type);
     const startY = marginTop + headerHeight;
 
     doc.setFont('helvetica', 'bold');
@@ -232,7 +246,7 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
     doc.setFontSize(8.25);
     doc.setTextColor(80);
     doc.text(
-      'Gray = cohort range (uploaded residents). Red = cohort mean. Black = minimum requirement. Blue = this resident.',
+      'Gray = range for this PGY cohort. Red = PGY cohort mean. Black = minimum requirement. Blue = this resident.',
       marginX,
       startY + sectionTitleHeight
     );
@@ -286,7 +300,7 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
         doc.setFontSize(9);
         doc.setTextColor(80);
         doc.text(
-          'Gray = cohort range (uploaded residents). Red = cohort mean. Black = minimum requirement. Blue = this resident.',
+          'Gray = range for this PGY cohort. Red = PGY cohort mean. Black = minimum requirement. Blue = this resident.',
           marginX,
           startY + sectionTitleHeight
         );
@@ -298,14 +312,12 @@ export function exportCohortStandardizedPdfReport(comparisons: ResidentCompariso
   comparisons.forEach((resident, idx) => {
     if (idx > 0) doc.addPage();
     // Page 1: Lead+Senior (most actionable)
-    renderResidentSectionTwoColumn(resident, 'leadAndSenior', leadSeniorStats, 'Lead + Senior (Cohort Range vs Minimum)');
+    renderResidentSectionTwoColumn(resident, 'leadAndSenior', 'Lead + Senior (PGY Cohort Range vs Minimum)');
     // Page 2: Lead
     doc.addPage();
-    renderResidentSectionTwoColumn(resident, 'lead', leadStats, 'Lead Surgeon (Cohort Range vs Minimum)');
+    renderResidentSectionTwoColumn(resident, 'lead', 'Lead Surgeon (PGY Cohort Range vs Minimum)');
   });
 
   const filename = `Resident_Cohort_Report_${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(filename);
 }
-
-

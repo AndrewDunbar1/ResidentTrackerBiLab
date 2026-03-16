@@ -172,9 +172,9 @@ const DEFAULT_PGY_GROUPS: Array<{ pgy: number; label: string; residents: string[
   { pgy: 6, label: 'R6', residents: ['Marcelle Altshuler', 'Joshua Chalif', 'Jason Chen'] },
   { pgy: 5, label: 'R5', residents: ['Casey Jarvis', 'Sean Lyne', 'James Tanner McMahon'] },
   { pgy: 4, label: 'R4', residents: ['Adam Glaser', 'David Liu', 'Gabrielle Luiselli'] },
-  { pgy: 3, label: 'R3', residents: ['Eric Chalif', 'Ron Gadot', 'Chibueze Nwagwu', 'Maren Loe'] },
+  { pgy: 3, label: 'R3', residents: ['Eric Chalif', 'Ron Gadot', 'Chibueze Nwagwu'] },
   { pgy: 2, label: 'R2', residents: ['Eduardo Maury', 'Alexander Yearley', 'Sarah Blitz'] },
-  { pgy: 1, label: 'R1', residents: ['Ruchit V. Patel', 'Solomiia Savchuk'] },
+  { pgy: 1, label: 'R1', residents: ['Ruchit V. Patel', 'Solomiia Savchuk', 'Maren Loe'] },
 ];
 
 // Short initials for display in narrow columns

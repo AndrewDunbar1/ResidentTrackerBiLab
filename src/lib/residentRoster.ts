@@ -30,7 +30,6 @@ export const RESIDENT_ROSTER: ResidentRosterEntry[] = [
   { name: 'Eric Chalif', pgy: 3 },
   { name: 'Ron Gadot', pgy: 3 },
   { name: 'Chibueze Nwagwu', pgy: 3 },
-  { name: 'Maren Loe', pgy: 3 },
 
   // PGY2
   { name: 'Sarah Blitz', pgy: 2 },
@@ -40,6 +39,7 @@ export const RESIDENT_ROSTER: ResidentRosterEntry[] = [
   // PGY1
   { name: 'Ruchit V. Patel', pgy: 1 },
   { name: 'Solomiia Savchuk', pgy: 1 },
+  { name: 'Maren Loe', pgy: 1 },
 ];
 
 const normalizeName = (name: string) => {
