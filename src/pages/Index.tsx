@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Users } from 'lucide-react';
 import { FileUploader } from '@/components/FileUploader';
-import { ResidentCard } from '@/components/ResidentCard';
 import { ComparativeReport } from '@/components/ComparativeReport';
 import { parseResidentFile } from '@/lib/parseResidentData';
 import { compareResident, rankResidents } from '@/lib/compareResidents';
@@ -122,23 +120,8 @@ const Index = () => {
               </div>
             </div>
 
-            {/* Comparative Report (if multiple residents) */}
-            {comparisons.length > 1 && (
-              <ComparativeReport comparisons={comparisons} />
-            )}
-
-            {/* Individual Resident Cards */}
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-4">Individual Reports</h3>
-              <div className="space-y-4">
-                {comparisons.map((comparison) => (
-                  <ResidentCard
-                    key={comparison.residentName}
-                    comparison={comparison}
-                  />
-                ))}
-              </div>
-            </div>
+            {/* Comparative Report */}
+            <ComparativeReport comparisons={comparisons} />
           </div>
         )}
       </main>

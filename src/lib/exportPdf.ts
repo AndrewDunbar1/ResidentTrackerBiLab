@@ -1,9 +1,9 @@
 import { jsPDF } from 'jspdf';
 import type { ComparisonResult, ResidentComparison } from '@/types/resident';
 
-type RequirementType = 'lead' | 'leadAndSenior';
+export type RequirementType = 'lead' | 'leadAndSenior';
 
-type CohortCategoryStats = {
+export type CohortCategoryStats = {
   category: string;
   type: RequirementType;
   minRequirement: number; // requirement threshold (min)
@@ -18,17 +18,17 @@ function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-function formatMetric(value: number): string {
+export function formatMetric(value: number): string {
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(1).replace(/\.0$/, '');
 }
 
-function getPercentMinimumsMet(c: ResidentComparison): number {
+export function getPercentMinimumsMet(c: ResidentComparison): number {
   if (!c.totalCategories) return 0;
   return Math.round((c.totalCategoriesMet / c.totalCategories) * 100);
 }
 
-function getCategoryOrder(comparisons: ResidentComparison[], type: RequirementType): string[] {
+export function getCategoryOrder(comparisons: ResidentComparison[], type: RequirementType): string[] {
   const primary = comparisons[0];
   const list = type === 'lead' ? primary.leadResults : primary.leadAndSeniorResults;
   const order: string[] = [];
@@ -47,7 +47,7 @@ function getCategoryOrder(comparisons: ResidentComparison[], type: RequirementTy
   return order;
 }
 
-function buildCohortStats(
+export function buildCohortStats(
   comparisons: ResidentComparison[],
   type: RequirementType
 ): Map<string, CohortCategoryStats> {
@@ -84,7 +84,7 @@ function buildCohortStats(
   return map;
 }
 
-function getResidentCohortComparisons(
+export function getResidentCohortComparisons(
   resident: ResidentComparison,
   comparisons: ResidentComparison[]
 ): ResidentComparison[] {
@@ -94,7 +94,7 @@ function getResidentCohortComparisons(
   return samePgy.length > 0 ? samePgy : comparisons;
 }
 
-function getResidentResult(
+export function getResidentResult(
   comparison: ResidentComparison,
   category: string,
   type: RequirementType

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Download } from 'lucide-react';
 import type { ResidentComparison } from '@/types/resident';
 import { exportCohortStandardizedPdfReport } from '@/lib/exportPdf';
 import { exportBwhTemplateGridPdf, exportBwhTemplateGridPdfLocal } from '@/lib/exportBwhTemplatePdf';
+import { CohortComparisonModal } from '@/components/CohortComparisonModal';
 import { cn } from '@/lib/utils';
 
 interface ComparativeReportProps {
@@ -9,6 +11,8 @@ interface ComparativeReportProps {
 }
 
 export function ComparativeReport({ comparisons }: ComparativeReportProps) {
+  const [selectedResident, setSelectedResident] = useState<ResidentComparison | null>(null);
+
   if (comparisons.length === 0) return null;
 
   const avgLeadScore = Math.round(
@@ -106,7 +110,14 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
                     key={comparison.residentName}
                     className={cn('border-b border-border/50', index % 2 === 0 && 'bg-muted/30')}
                   >
-                    <td className="py-3 px-3 font-medium text-foreground">{comparison.residentName}</td>
+                    <td className="py-3 px-3 font-medium">
+                      <button
+                        onClick={() => setSelectedResident(comparison)}
+                        className="text-primary hover:text-primary/80 hover:underline underline-offset-2 transition-colors text-left"
+                      >
+                        {comparison.residentName}
+                      </button>
+                    </td>
                     <td className="py-3 px-3 text-center font-mono text-muted-foreground">
                       {comparison.pgy ? `PGY${comparison.pgy}` : '—'}
                     </td>
@@ -133,6 +144,15 @@ export function ComparativeReport({ comparisons }: ComparativeReportProps) {
           </table>
         </div>
       </div>
+
+      <CohortComparisonModal
+        resident={selectedResident}
+        comparisons={comparisons}
+        open={selectedResident !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedResident(null);
+        }}
+      />
     </div>
   );
 }
