@@ -73,6 +73,7 @@ const BWH_ROW_MAP: Array<{ row: number; key: string; section?: string }> = [
   { row: 26, key: 'spinal stimulation lesion pump other' },
   { row: 27, key: 'total spinal' },
 
+  { row: 27.5, key: '__section_other', section: 'Other' },
   { row: 28, key: 'peripheral nerve' },
   { row: 29, key: 'radiosurgery' },
   { row: 30, key: 'peripheral device management' },
