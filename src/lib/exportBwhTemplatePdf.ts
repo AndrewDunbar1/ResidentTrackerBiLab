@@ -497,16 +497,11 @@ async function exportBwhTemplateGridPdfBase(
     let y = startY;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5.5);
-    const spacerBeforeKeys = new Set(['total', 'microdissection']);
     const centerText = (text: string, cellX: number, cellW: number, textY: number) => {
       doc.text(text, cellX + cellW / 2, textY, { align: 'center' });
     };
 
     for (const { row, key, section } of BWH_ROW_MAP) {
-      if (!section && spacerBeforeKeys.has(key)) {
-        y += 5;
-      }
-
       if (y + rowH > pageH - margin) {
         doc.addPage();
         currentPage++;
@@ -518,6 +513,15 @@ async function exportBwhTemplateGridPdfBase(
       const label = section ?? CATEGORY_LABELS[row] ?? '';
       const meanVal = means.get(row);
       const minVal = minimums.get(row);
+
+      if (!section && key === 'total') {
+        let fullRowW = s(catW + meanW + minW) + gap * 2;
+        for (const g of pgyGroups) {
+          fullRowW += s(progW + g.residents.length * resW) + gap;
+        }
+        stroke([120, 120, 120]);
+        doc.line(x, y - 2, x + fullRowW, y - 2);
+      }
 
       // Section header row
       if (section) {
