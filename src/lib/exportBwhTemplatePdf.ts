@@ -73,11 +73,6 @@ const BWH_ROW_MAP: Array<{ row: number; key: string; section?: string }> = [
   { row: 26, key: 'spinal stimulation lesion pump other' },
   { row: 27, key: 'total spinal' },
 
-  { row: 27.5, key: '__section_other', section: 'Other' },
-  { row: 28, key: 'peripheral nerve' },
-  { row: 29, key: 'radiosurgery' },
-  { row: 30, key: 'peripheral device management' },
-
   { row: 31, key: '__section_critical_care', section: 'Critical Care' },
   { row: 32, key: 'airway management' },
   { row: 33, key: 'angiography' },
@@ -94,6 +89,11 @@ const BWH_ROW_MAP: Array<{ row: number; key: string; section?: string }> = [
   { row: 43, key: 'pediatric csf diversion etv other' },
   { row: 44, key: 'pediatric spinal' },
   { row: 45, key: 'total pediatric' },
+
+  { row: 45.5, key: '__section_other', section: 'Other' },
+  { row: 28, key: 'peripheral nerve' },
+  { row: 29, key: 'radiosurgery' },
+  { row: 30, key: 'peripheral device management' },
 
   { row: 46, key: 'total' },
   { row: 47, key: 'microdissection' },
