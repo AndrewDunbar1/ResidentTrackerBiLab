@@ -497,11 +497,16 @@ async function exportBwhTemplateGridPdfBase(
     let y = startY;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(5.5);
+    const spacerBeforeKeys = new Set(['total', 'microdissection']);
     const centerText = (text: string, cellX: number, cellW: number, textY: number) => {
       doc.text(text, cellX + cellW / 2, textY, { align: 'center' });
     };
 
     for (const { row, key, section } of BWH_ROW_MAP) {
+      if (!section && spacerBeforeKeys.has(key)) {
+        y += 5;
+      }
+
       if (y + rowH > pageH - margin) {
         doc.addPage();
         currentPage++;
